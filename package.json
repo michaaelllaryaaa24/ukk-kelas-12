@@ -1,0 +1,11 @@
+{
+  "name": "taskflow-ukk-pplg",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplikasi Workspace Produktivitas & To-Do List Fullstack (Laravel 11 + React Vite) untuk UKK SMK PPLG/RPL",
+  "scripts": {
+    "dev": "node start.js",
+    "start": "node start.js"
+  }
+}
+
