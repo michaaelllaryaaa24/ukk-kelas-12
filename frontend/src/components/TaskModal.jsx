@@ -59,10 +59,10 @@ export default function TaskModal({
       setSubtasks(
         Array.isArray(editingTask.subtasks)
           ? editingTask.subtasks.map((s) => ({
-              id: s.id,
-              title: s.title,
-              is_completed: Boolean(s.is_completed),
-            }))
+            id: s.id,
+            title: s.title,
+            is_completed: Boolean(s.is_completed),
+          }))
           : []
       );
     } else if (initialDraft) {
@@ -195,11 +195,10 @@ export default function TaskModal({
             <button
               type="button"
               onClick={() => setIsPinned((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                isPinned
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isPinned
                   ? 'border-[#F0D981] bg-[#FBE67B] text-[#5C4104] dark:border-[#473B20] dark:bg-[#382D18] dark:text-[#FCD34D]'
                   : 'border-[#E6E0D4] bg-white text-[#71717A] hover:bg-[#EFECE4] dark:border-[#242B3D] dark:bg-[#161B26] dark:text-[#9DA7BD] dark:hover:bg-[#1F2636]'
-              }`}
+                }`}
             >
               <Pin className="h-3.5 w-3.5" />
               <span>{isPinned ? 'Disematkan' : 'Sematkan'}</span>
@@ -311,7 +310,7 @@ export default function TaskModal({
                     setDueDate(e.target.value);
                     if (errorMsg) setErrorMsg('');
                   }}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={new Date().toLocaleDateString('en-CA')}
                   className="w-full rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-2 font-mono text-sm text-[#141518] focus:border-[#141518] focus:outline-none dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#F1F5F9] dark:focus:border-[#60A5FA]"
                 />
               </div>
@@ -399,20 +398,18 @@ export default function TaskModal({
                         className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                       >
                         <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                            item.is_completed
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${item.is_completed
                               ? 'border-[#141518] bg-[#141518] text-white dark:border-[#93C5FD] dark:bg-[#93C5FD] dark:text-[#0F131D]'
                               : 'border-[#C7BFA9] dark:border-[#3B4661]'
-                          }`}
+                            }`}
                         >
                           {item.is_completed && <Check className="h-3 w-3" />}
                         </span>
                         <span
-                          className={`truncate text-xs ${
-                            item.is_completed
+                          className={`truncate text-xs ${item.is_completed
                               ? 'text-[#71717A] line-through dark:text-[#6B768F]'
                               : 'font-medium text-[#141518] dark:text-[#F1F5F9]'
-                          }`}
+                            }`}
                         >
                           {item.title}
                         </span>
@@ -454,8 +451,8 @@ export default function TaskModal({
               {saving
                 ? 'Menyimpan...'
                 : editingTask
-                ? 'Simpan Perubahan'
-                : 'Simpan Tugas'}
+                  ? 'Simpan Perubahan'
+                  : 'Simpan Tugas'}
             </button>
           </div>
         </form>

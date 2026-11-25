@@ -23,7 +23,11 @@ import {
   updateScheduleApi,
 } from '../api/scheduleApi';
 import { useAuth, useToast } from '../context/useContexts';
-import { extractApiErrorMessage } from '../utils/formatters';
+import {
+  extractApiErrorMessage,
+  PRIORITY_META,
+  STATUS_META,
+} from '../utils/formatters';
 import { playCompletionSound } from '../utils/sound';
 import ScheduleModal from './ScheduleModal';
 
@@ -135,6 +139,7 @@ export default function ScheduleBoard({
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [todayIso] = useState(() => toIsoDate(new Date()));
   const [selectedDayIso, setSelectedDayIso] = useState(() => toIsoDate(new Date()));
+  const [selectedYearMonth, setSelectedYearMonth] = useState(() => new Date().getMonth());
 
   const [dragPayload, setDragPayload] = useState(null); // { type: 'schedule'|'task', id: number }
   const [dragOverIso, setDragOverIso] = useState(null);
@@ -286,8 +291,8 @@ export default function ScheduleBoard({
       item.status === 'scheduled'
         ? 'in_progress'
         : item.status === 'in_progress'
-        ? 'done'
-        : 'scheduled';
+          ? 'done'
+          : 'scheduled';
     try {
       await updateScheduleApi(item.id, { status: nextStatus });
       if (nextStatus === 'done') {
@@ -297,8 +302,8 @@ export default function ScheduleBoard({
         nextStatus === 'in_progress'
           ? `Agenda "${item.title}" ditandai sedang berjalan.`
           : nextStatus === 'done'
-          ? `Agenda "${item.title}" selesai.`
-          : `Agenda "${item.title}" dijadwalkan ulang.`
+            ? `Agenda "${item.title}" selesai.`
+            : `Agenda "${item.title}" dijadwalkan ulang.`
       );
       await loadSchedules();
     } catch (error) {
@@ -401,55 +406,57 @@ export default function ScheduleBoard({
     };
   });
 
-  // Tahunan: data 12 bulan untuk tahun aktif
+  // Tahunan: Rekap 12 bulan (card per bulan tanpa tanggal/kalender)
   const currentYear = anchorDate.getFullYear();
   const yearSchedules = schedules.filter(
     (s) => s.date && s.date.startsWith(String(currentYear))
   );
-  const yearTasks = tasks.filter(
-    (t) => t.due_date && t.due_date.startsWith(String(currentYear))
-  );
+  const yearTasks = tasks.filter((t) => {
+    if (t.due_date && t.due_date.startsWith(String(currentYear))) return true;
+    if (!t.due_date && t.created_at && t.created_at.startsWith(String(currentYear))) return true;
+    return false;
+  });
 
-  const yearMonthData = Array.from({ length: 12 }, (_, m) => {
-    const firstDay = new Date(currentYear, m, 1);
-    const daysInMonth = new Date(currentYear, m + 1, 0).getDate();
-    const rawDay = firstDay.getDay();
-    const startOffset = rawDay === 0 ? 6 : rawDay - 1;
+  const yearMonthRecap = Array.from({ length: 12 }, (_, m) => {
     const mStr = String(m + 1).padStart(2, '0');
     const monthIsoPrefix = `${currentYear}-${mStr}`;
+    const monthName = MONTH_NAMES_ID[m];
+
+    const monthTasks = tasks.filter((t) => {
+      if (t.due_date && t.due_date.startsWith(monthIsoPrefix)) return true;
+      if (!t.due_date && t.created_at && t.created_at.startsWith(monthIsoPrefix)) return true;
+      return false;
+    });
+
+    const completedCount = monthTasks.filter((t) => t.status === 'completed').length;
+    const inProgressCount = monthTasks.filter((t) => t.status === 'in_progress').length;
+    const todoCount = monthTasks.filter((t) => t.status === 'todo').length;
+    const totalTasks = monthTasks.length;
+    const rate = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
     const monthScheds = schedules.filter(
       (s) => s.date && s.date.startsWith(monthIsoPrefix)
     );
-    const monthTaskCount = tasks.filter(
-      (t) => t.due_date && t.due_date.startsWith(monthIsoPrefix)
-    ).length;
 
-    const days = Array.from({ length: daysInMonth }, (_, i) => {
-      const dayNum = i + 1;
-      const dStr = String(dayNum).padStart(2, '0');
-      const iso = `${monthIsoPrefix}-${dStr}`;
-      const hasSched = schedules.some((s) => s.date === iso);
-      const hasTask = tasks.some((t) => t.due_date === iso);
-      const isToday = iso === todayIso;
-      return {
-        dayNum,
-        iso,
-        hasSched,
-        hasTask,
-        isToday,
-      };
-    });
+    const isCurrentMonth =
+      currentYear === new Date().getFullYear() && m === new Date().getMonth();
 
     return {
       monthIndex: m,
-      monthName: MONTH_NAMES_ID[m],
-      startOffset,
-      days,
-      schedCount: monthScheds.length,
-      taskCount: monthTaskCount,
+      monthName,
+      monthIsoPrefix,
+      tasks: monthTasks,
+      totalTasks,
+      completedCount,
+      inProgressCount,
+      todoCount,
+      rate,
+      scheds: monthScheds,
+      isCurrentMonth,
     };
   });
+
+  const activeRecap = yearMonthRecap[selectedYearMonth] || yearMonthRecap[0];
 
   const handleJumpToMonth = (monthIndex) => {
     const next = new Date(anchorDate);
@@ -484,9 +491,8 @@ export default function ScheduleBoard({
           setDragOverIso(null);
         }}
         onClick={() => handleOpenEdit(item)}
-        className={`group cursor-grab rounded-xl border border-[#E6E0D4] border-l-[3px] bg-white p-3 transition-all hover:border-[#CFC8B8] hover:shadow-xs active:cursor-grabbing dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#394563] ${
-          accent.borderLeft
-        } ${isDragging ? 'opacity-45' : ''}`}
+        className={`group cursor-grab rounded-xl border border-[#E6E0D4] border-l-[3px] bg-white p-3 transition-all hover:border-[#CFC8B8] hover:shadow-xs active:cursor-grabbing dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#394563] ${accent.borderLeft
+          } ${isDragging ? 'opacity-45' : ''}`}
       >
         {/* Header Kartu Ringkas: Jam Monospace + 1 Tombol Menu Hover */}
         <div className="flex items-center justify-between gap-1.5 text-[#71717A] dark:text-[#9DA7BD]">
@@ -516,9 +522,8 @@ export default function ScheduleBoard({
         </div>
 
         <p
-          className={`mt-2 line-clamp-2 text-[13px] font-bold leading-snug text-[#141518] dark:text-[#F1F5F9] ${
-            item.status === 'done' ? 'line-through opacity-60' : ''
-          }`}
+          className={`mt-2 line-clamp-2 text-[13px] font-bold leading-snug text-[#141518] dark:text-[#F1F5F9] ${item.status === 'done' ? 'line-through opacity-60' : ''
+            }`}
         >
           {item.title}
         </p>
@@ -634,10 +639,10 @@ export default function ScheduleBoard({
             {viewMode === 'year'
               ? `Tahun ${currentYear}`
               : viewMode === 'month'
-              ? monthTitle
-              : viewMode === 'today'
-              ? selectedDayIso
-              : `${weekStartLabel} - ${weekEndLabel}`}
+                ? monthTitle
+                : viewMode === 'today'
+                  ? selectedDayIso
+                  : `${weekStartLabel} - ${weekEndLabel}`}
           </span>
           <button
             type="button"
@@ -671,11 +676,10 @@ export default function ScheduleBoard({
                 key={tab.id}
                 type="button"
                 onClick={() => setViewMode(tab.id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  viewMode === tab.id
-                    ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
-                    : 'text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white'
-                }`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${viewMode === tab.id
+                  ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
+                  : 'text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -736,13 +740,12 @@ export default function ScheduleBoard({
                     key={day.iso}
                     type="button"
                     onClick={() => setSelectedDayIso(day.iso)}
-                    className={`relative flex flex-col items-center justify-center rounded-2xl border py-2 transition-colors ${
-                      isSelected
-                        ? 'border-[#141518] bg-[#141518] text-white dark:border-[#93C5FD] dark:bg-[#93C5FD] dark:text-[#0F131D]'
-                        : isToday
+                    className={`relative flex flex-col items-center justify-center rounded-2xl border py-2 transition-colors ${isSelected
+                      ? 'border-[#141518] bg-[#141518] text-white dark:border-[#93C5FD] dark:bg-[#93C5FD] dark:text-[#0F131D]'
+                      : isToday
                         ? 'border-[#141518]/50 bg-white text-[#141518] dark:border-[#60A5FA]/70 dark:bg-[#161B26] dark:text-[#F1F5F9]'
                         : 'border-[#EAE4D8] bg-white text-[#141518] hover:border-[#C7BFA9] dark:border-[#242B3D] dark:bg-[#161B26] dark:text-[#E2E7F2] dark:hover:border-[#394563]'
-                    } ${day.isSunday && !isSelected ? 'opacity-55' : ''}`}
+                      } ${day.isSunday && !isSelected ? 'opacity-55' : ''}`}
                   >
                     <span className="text-[10px] font-semibold tracking-wider opacity-75">
                       {day.dayShort}
@@ -793,13 +796,12 @@ export default function ScheduleBoard({
                       }}
                       onDragLeave={() => setDragOverIso(null)}
                       onDrop={(e) => handleDropOnDay(e, day.iso)}
-                      className={`flex min-h-[380px] flex-col gap-2 rounded-2xl p-1.5 transition-all ${
-                        isDropTarget
-                          ? 'bg-[#EAE4D8]/80 ring-2 ring-[#141518]/30 dark:bg-[#1D2538] dark:ring-[#93C5FD]/50'
-                          : day.iso === selectedDayIso
+                      className={`flex min-h-[380px] flex-col gap-2 rounded-2xl p-1.5 transition-all ${isDropTarget
+                        ? 'bg-[#EAE4D8]/80 ring-2 ring-[#141518]/30 dark:bg-[#1D2538] dark:ring-[#93C5FD]/50'
+                        : day.iso === selectedDayIso
                           ? 'bg-white/65 dark:bg-[#161C2B]/75'
                           : 'bg-transparent'
-                      }`}
+                        }`}
                     >
                       {daySchedules.map((item) => renderScheduleCard(item))}
 
@@ -885,19 +887,17 @@ export default function ScheduleBoard({
                 <div
                   key={cell.iso}
                   onClick={() => handleOpenCreate(cell.iso)}
-                  className={`min-h-[105px] cursor-pointer rounded-2xl border p-2 transition-colors hover:border-[#141518]/40 dark:hover:border-[#60A5FA]/50 ${
-                    cell.inCurrentMonth
-                      ? 'border-[#EFECE4] bg-[#FAF7F0] dark:border-[#242B3D] dark:bg-[#11151E]'
-                      : 'border-transparent bg-[#FAF7F0]/40 opacity-45 dark:bg-[#0D1018]'
-                  }`}
+                  className={`min-h-[105px] cursor-pointer rounded-2xl border p-2 transition-colors hover:border-[#141518]/40 dark:hover:border-[#60A5FA]/50 ${cell.inCurrentMonth
+                    ? 'border-[#EFECE4] bg-[#FAF7F0] dark:border-[#242B3D] dark:bg-[#11151E]'
+                    : 'border-transparent bg-[#FAF7F0]/40 opacity-45 dark:bg-[#0D1018]'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] font-bold ${
-                        isToday
-                          ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
-                          : 'text-[#141518] dark:text-[#E2E7F2]'
-                      }`}
+                      className={`flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] font-bold ${isToday
+                        ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
+                        : 'text-[#141518] dark:text-[#E2E7F2]'
+                        }`}
                     >
                       {cell.date.getDate()}
                     </span>
@@ -943,21 +943,21 @@ export default function ScheduleBoard({
         </div>
       )}
 
-      {/* MODE TAHUNAN */}
+      {/* MODE TAHUNAN: REKAP PER BULAN TANPA TANGGAL KALENDER */}
       {viewMode === 'year' && (
-        <div className="space-y-4">
-          {/* Banner Ringkasan Tahunan */}
+        <div className="space-y-5">
+          {/* Header Banner Rekap Tahunan */}
           <div className="flex flex-col gap-3 rounded-3xl border border-[#E6E0D4] bg-white p-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#242B3D] dark:bg-[#161B26]">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]">
                 <CalendarRange className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-[#141518] dark:text-[#F1F5F9]">
-                  Kalender Tahunan {currentYear}
+                  Rekap Tugas & Agenda Tahun {currentYear}
                 </h2>
                 <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
-                  Klik tanggal untuk menambah agenda, atau klik nama bulan untuk membuka tampilan bulanan.
+                  Klik pada salah satu kartu bulan di bawah untuk melihat rincian rekap tugas dan kegiatan pada bulan tersebut.
                 </p>
               </div>
             </div>
@@ -965,165 +965,253 @@ export default function ScheduleBoard({
             <div className="flex flex-wrap items-center gap-2">
               <div className="rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-1.5 text-center dark:border-[#262E42] dark:bg-[#10141E]">
                 <span className="block font-mono text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
-                  {yearSchedules.length}
+                  {yearTasks.length}
                 </span>
                 <span className="text-[10px] text-[#71717A] dark:text-[#9DA7BD]">
-                  Agenda Tahun Ini
+                  Total Tugas {currentYear}
                 </span>
               </div>
               <div className="rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-1.5 text-center dark:border-[#262E42] dark:bg-[#10141E]">
                 <span className="block font-mono text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
-                  {yearTasks.length}
+                  {yearSchedules.length}
                 </span>
                 <span className="text-[10px] text-[#71717A] dark:text-[#9DA7BD]">
-                  Deadline Tugas
+                  Total Agenda {currentYear}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Legenda Indikator */}
-          <div className="flex flex-wrap items-center justify-end gap-4 px-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#141518] dark:bg-[#93C5FD]" />
-              <span>Hari Ini</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#5E8BE6]" />
-              <span>Ada Agenda</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#F43F5E]" />
-              <span>Ada Deadline Tugas</span>
-            </div>
-          </div>
+          {/* Grid 12 Kartu Bulan (Januari - Desember) */}
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {yearMonthRecap.map((m) => {
+              const isSelected = selectedYearMonth === m.monthIndex;
 
-          {/* Grid 12 Bulan */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {yearMonthData.map((m) => (
-              <div
-                key={m.monthIndex}
-                className="flex flex-col justify-between rounded-2xl border border-[#E6E0D4] bg-white p-3.5 transition-all hover:border-[#141518]/30 hover:shadow-xs dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#60A5FA]/40"
-              >
-                <div>
-                  {/* Header Bulan */}
-                  <div className="flex items-center justify-between border-b border-[#EFECE4] pb-2 dark:border-[#242B3D]">
-                    <button
-                      type="button"
-                      onClick={() => handleJumpToMonth(m.monthIndex)}
-                      className="group flex items-center gap-1 text-left font-bold text-xs text-[#141518] hover:text-[#5E8BE6] dark:text-[#F1F5F9] dark:hover:text-[#93C5FD]"
-                      title={`Buka tampilan bulan ${m.monthName}`}
-                    >
-                      <span>{m.monthName}</span>
-                      <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
-                    </button>
-                    {m.schedCount > 0 && (
-                      <span className="rounded-full bg-[#EBF3FE] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]">
-                        {m.schedCount} agenda
+              return (
+                <div
+                  key={m.monthIndex}
+                  onClick={() => setSelectedYearMonth(m.monthIndex)}
+                  className={`group relative flex cursor-pointer flex-col justify-between rounded-2xl p-4 transition-all ${
+                    isSelected
+                      ? 'border-2 border-[#141518] bg-white shadow-md ring-2 ring-[#141518]/10 dark:border-[#93C5FD] dark:bg-[#161B26] dark:ring-[#93C5FD]/20'
+                      : 'border border-[#E6E0D4] bg-[#FAF7F0] hover:border-[#141518]/40 hover:bg-white hover:shadow-xs dark:border-[#242B3D] dark:bg-[#11151E] dark:hover:border-[#60A5FA]/40 dark:hover:bg-[#161B26]'
+                  }`}
+                >
+                  <div>
+                    {/* Header Kartu: Nama Bulan & Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#141518] dark:text-[#F1F5F9]">
+                          {m.monthName}
+                        </span>
+                        {m.isCurrentMonth && (
+                          <span className="rounded-full bg-[#141518] px-2 py-0.5 text-[10px] font-bold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]">
+                            Bulan Ini
+                          </span>
+                        )}
+                      </div>
+
+                      {isSelected && (
+                        <span className="rounded-full bg-[#DCF3D1] px-2 py-0.5 text-[10px] font-bold text-[#1F5428] dark:bg-[#152920] dark:text-[#86EFAC]">
+                          Aktif Dipilih
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Ringkasan Angka Tugas & Agenda */}
+                    <div className="mt-3 flex items-baseline justify-between">
+                      <span className="font-mono text-2xl font-bold tracking-tight text-[#141518] dark:text-[#F8FAFC]">
+                        {m.totalTasks}{' '}
+                        <span className="text-xs font-normal text-[#71717A] dark:text-[#9DA7BD]">
+                          Tugas
+                        </span>
                       </span>
-                    )}
+                      {m.scheds.length > 0 && (
+                        <span className="font-mono text-xs font-medium text-[#71717A] dark:text-[#9DA7BD]">
+                          {m.scheds.length} Agenda
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bar Progres Penyelesaian */}
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                        <span>Penyelesaian</span>
+                        <span className="font-mono font-bold text-[#141518] dark:text-[#F1F5F9]">
+                          {m.rate}%
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#EFECE4] dark:bg-[#232A3C]">
+                        <div
+                          className="h-full rounded-full bg-[#141518] transition-all dark:bg-[#93C5FD]"
+                          style={{ width: `${m.rate}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Pills */}
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px] font-medium">
+                      <span className="rounded-md bg-[#DCF3D1] px-2 py-0.5 text-[#1F5428] dark:bg-[#152920] dark:text-[#86EFAC]">
+                        {m.completedCount} Selesai
+                      </span>
+                      <span className="rounded-md bg-[#FCE5F1] px-2 py-0.5 text-[#702459] dark:bg-[#1A253B] dark:text-[#93C5FD]">
+                        {m.inProgressCount} Berjalan
+                      </span>
+                      <span className="rounded-md bg-white border border-[#E6E0D4] px-2 py-0.5 text-[#52525B] dark:border-[#2C354A] dark:bg-[#1B2233] dark:text-[#CBD5E1]">
+                        {m.todoCount} To-Do
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Header Singkatan Hari */}
-                  <div className="mt-2 grid grid-cols-7 gap-1 text-center font-mono text-[9px] font-bold text-[#71717A] dark:text-[#6B768F]">
-                    {['S', 'S', 'R', 'K', 'J', 'S', 'M'].map((d, idx) => (
-                      <div key={idx}>{d}</div>
-                    ))}
-                  </div>
-
-                  {/* Grid Hari dalam Bulan */}
-                  <div className="mt-1 grid grid-cols-7 gap-1 text-center font-mono text-[11px]">
-                    {/* Padding awal offset */}
-                    {Array.from({ length: m.startOffset }).map((_, idx) => (
-                      <div key={`offset-${idx}`} className="h-6 w-full" />
-                    ))}
-
-                    {/* Tanggal dalam Bulan */}
-                    {m.days.map((day) => (
-                      <button
-                        key={day.iso}
-                        type="button"
-                        onClick={() => handleOpenCreate(day.iso)}
-                        title={`${day.dayNum} ${m.monthName} ${currentYear}${
-                          day.hasSched ? ' (Ada agenda)' : ''
-                        }${day.hasTask ? ' (Ada tenggat tugas)' : ''}`}
-                        className={`relative flex h-6 w-full flex-col items-center justify-center rounded-lg transition-colors ${
-                          day.isToday
-                            ? 'bg-[#141518] font-bold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
-                            : 'text-[#141518] hover:bg-[#FAF7F0] dark:text-[#E2E7F2] dark:hover:bg-[#1B2233]'
-                        }`}
-                      >
-                        <span className="leading-none">{day.dayNum}</span>
-                        {/* Indikator Titik */}
-                        <div className="absolute -bottom-0.5 flex gap-0.5">
-                          {day.hasSched && (
-                            <span
-                              className={`h-1 w-1 rounded-full ${
-                                day.isToday ? 'bg-white dark:bg-[#0F131D]' : 'bg-[#5E8BE6]'
-                              }`}
-                            />
-                          )}
-                          {day.hasTask && (
-                            <span
-                              className={`h-1 w-1 rounded-full ${
-                                day.isToday ? 'bg-white dark:bg-[#0F131D]' : 'bg-[#F43F5E]'
-                              }`}
-                            />
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="mt-4 border-t border-[#EFECE4] pt-2 text-right dark:border-[#242B3D]">
+                    <span className="text-[11px] font-semibold text-[#624CE0] group-hover:underline dark:text-[#93C5FD]">
+                      {isSelected ? 'Rincian ditampilkan di bawah ↓' : 'Klik untuk lihat rincian tugas →'}
+                    </span>
                   </div>
                 </div>
-
-                <div className="mt-3 border-t border-[#EFECE4] pt-2 text-right dark:border-[#242B3D]">
-                  <button
-                    type="button"
-                    onClick={() => handleJumpToMonth(m.monthIndex)}
-                    className="text-[10px] font-semibold text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white"
-                  >
-                    Buka Bulan Ini &rarr;
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Panel Daftar Agenda Tahun Ini */}
+          {/* Panel Rekap Detail Bulan Terpilih */}
           <div className="rounded-3xl border border-[#E6E0D4] bg-white p-5 dark:border-[#242B3D] dark:bg-[#161B26]">
-            <div className="flex items-center justify-between border-b border-[#EFECE4] pb-3.5 dark:border-[#242B3D]">
+            <div className="flex flex-col gap-3 border-b border-[#EFECE4] pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#242B3D]">
               <div>
-                <h3 className="text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
-                  Daftar Agenda Tahun {currentYear}
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-lg bg-[#EBF3FE] px-2.5 py-1 text-xs font-bold text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]">
+                    Bulan {activeRecap.monthName} {currentYear}
+                  </span>
+                  {activeRecap.isCurrentMonth && (
+                    <span className="text-xs font-medium text-[#71717A] dark:text-[#9DA7BD]">
+                      (Bulan Saat Ini)
+                    </span>
+                  )}
+                </div>
+                <h3 className="mt-1 text-base font-bold text-[#141518] dark:text-[#F1F5F9]">
+                  Rekap Rincian Tugas Bulan {activeRecap.monthName}
                 </h3>
                 <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
-                  Semua agenda kegiatan terjadwal di tahun {currentYear}
+                  Ditemukan {activeRecap.totalTasks} tugas ({activeRecap.completedCount} selesai, {activeRecap.inProgressCount} berjalan, {activeRecap.todoCount} to-do) dan {activeRecap.scheds.length} agenda.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => handleOpenCreate(`${currentYear}-01-01`)}
-                className="inline-flex items-center gap-1 rounded-full bg-[#141518] px-3 py-1.5 text-xs font-semibold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Agenda</span>
-              </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleJumpToMonth(activeRecap.monthIndex)}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#E6E0D4] bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-[#141518] transition-colors hover:bg-[#EFECE4] dark:border-[#262E42] dark:bg-[#10141E] dark:text-[#E2E7F2] dark:hover:bg-[#1F2636]"
+                >
+                  <CalendarIcon className="h-3.5 w-3.5 text-[#71717A] dark:text-[#9DA7BD]" />
+                  <span>Buka Kalender Bulanan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleOpenCreate(
+                      `${currentYear}-${String(activeRecap.monthIndex + 1).padStart(2, '0')}-01`
+                    )
+                  }
+                  className="inline-flex items-center gap-1 rounded-full bg-[#141518] px-3.5 py-1.5 text-xs font-semibold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Agenda Bulan Ini</span>
+                </button>
+              </div>
             </div>
 
-            {yearSchedules.length > 0 ? (
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {yearSchedules.map((item) => renderScheduleCard(item))}
+            {/* Bagian 1: Daftar Tugas Bulan Ini */}
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#71717A] dark:text-[#9DA7BD]">
+                  Daftar Tugas Bulan {activeRecap.monthName} ({activeRecap.totalTasks})
+                </h4>
               </div>
-            ) : (
-              <div className="py-10 text-center">
-                <p className="text-xs font-semibold text-[#141518] dark:text-[#F1F5F9]">
-                  Belum ada agenda di tahun {currentYear}
-                </p>
-                <p className="mt-1 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
-                  Klik tanggal pada kalender di atas atau tombol Tambah Agenda untuk mulai menjadwalkan kegiatan.
-                </p>
+
+              {activeRecap.tasks.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {activeRecap.tasks.map((task) => {
+                    const statusMeta = STATUS_META[task.status] || STATUS_META.todo;
+                    const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+                    const subStats = task.subtask_stats || { total: 0, completed: 0 };
+
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => {
+                          if (onEditTask) onEditTask(task);
+                        }}
+                        className="group flex cursor-pointer flex-col justify-between rounded-xl border border-[#EFECE4] bg-[#FAF7F0] p-3.5 transition-colors hover:border-[#141518]/30 hover:bg-white dark:border-[#232A3C] dark:bg-[#10141E] dark:hover:border-[#394563] dark:hover:bg-[#161B26]"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusMeta.badgeClass}`}
+                            >
+                              {statusMeta.label}
+                            </span>
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityMeta.badgeClass}`}
+                            >
+                              {priorityMeta.label}
+                            </span>
+                          </div>
+
+                          <p className="mt-2 text-xs font-bold text-[#141518] group-hover:underline dark:text-[#F1F5F9]">
+                            {task.title}
+                          </p>
+
+                          {task.description && (
+                            <p className="mt-1 line-clamp-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#EFECE4] pt-2 text-[11px] text-[#71717A] dark:border-[#242B3D] dark:text-[#9DA7BD]">
+                          <span className="rounded-md bg-white px-2 py-0.5 font-medium text-[#52525B] dark:border dark:border-[#273045] dark:bg-[#1A202E] dark:text-[#CBD5E1]">
+                            {task.category || 'Umum'}
+                          </span>
+                          {task.due_date && (
+                            <span className="font-mono text-[10px]">
+                              Tenggat: {task.due_date}
+                            </span>
+                          )}
+                          {subStats.total > 0 && (
+                            <span className="font-mono text-[10px]">
+                              {subStats.completed}/{subStats.total} sub-tugas
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#E6E0D4] p-6 text-center text-xs text-[#71717A] dark:border-[#262E42] dark:text-[#9DA7BD]">
+                  Belum ada tugas dengan tenggat atau dibuat pada bulan {activeRecap.monthName} {currentYear}.
+                </div>
+              )}
+            </div>
+
+            {/* Bagian 2: Agenda Jadwal Bulan Ini */}
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center justify-between border-t border-[#EFECE4] pt-5 dark:border-[#242B3D]">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#71717A] dark:text-[#9DA7BD]">
+                  Agenda Jadwal di Bulan {activeRecap.monthName} ({activeRecap.scheds.length})
+                </h4>
               </div>
-            )}
+
+              {activeRecap.scheds.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {activeRecap.scheds.map((item) => renderScheduleCard(item))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#E6E0D4] p-6 text-center text-xs text-[#71717A] dark:border-[#262E42] dark:text-[#9DA7BD]">
+                  Belum ada agenda kegiatan terjadwal pada bulan {activeRecap.monthName} {currentYear}.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
