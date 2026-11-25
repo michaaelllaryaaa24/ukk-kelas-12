@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Calendar as CalendarIcon,
+  CalendarRange,
   CheckSquare,
   ChevronLeft,
   ChevronRight,
@@ -69,6 +70,20 @@ const STATUS_BADGE = {
 };
 
 const DAY_NAMES_SHORT = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+const MONTH_NAMES_ID = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];
 const TIME_SLOTS = ['07:00', '08:00', '09:00', '10:00', '11:00'];
 
 function toIsoDate(d) {
@@ -116,7 +131,7 @@ export default function ScheduleBoard({
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewMode, setViewMode] = useState('week'); // 'today' | 'week' | 'month'
+  const [viewMode, setViewMode] = useState('week'); // 'today' | 'week' | 'month' | 'year'
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [todayIso] = useState(() => toIsoDate(new Date()));
   const [selectedDayIso, setSelectedDayIso] = useState(() => toIsoDate(new Date()));
@@ -202,7 +217,9 @@ export default function ScheduleBoard({
 
   const shiftPeriod = (direction) => {
     const next = new Date(anchorDate);
-    if (viewMode === 'month') {
+    if (viewMode === 'year') {
+      next.setFullYear(next.getFullYear() + direction);
+    } else if (viewMode === 'month') {
       next.setMonth(next.getMonth() + direction);
     } else if (viewMode === 'today') {
       next.setDate(next.getDate() + direction);
@@ -384,6 +401,63 @@ export default function ScheduleBoard({
     };
   });
 
+  // Tahunan: data 12 bulan untuk tahun aktif
+  const currentYear = anchorDate.getFullYear();
+  const yearSchedules = schedules.filter(
+    (s) => s.date && s.date.startsWith(String(currentYear))
+  );
+  const yearTasks = tasks.filter(
+    (t) => t.due_date && t.due_date.startsWith(String(currentYear))
+  );
+
+  const yearMonthData = Array.from({ length: 12 }, (_, m) => {
+    const firstDay = new Date(currentYear, m, 1);
+    const daysInMonth = new Date(currentYear, m + 1, 0).getDate();
+    const rawDay = firstDay.getDay();
+    const startOffset = rawDay === 0 ? 6 : rawDay - 1;
+    const mStr = String(m + 1).padStart(2, '0');
+    const monthIsoPrefix = `${currentYear}-${mStr}`;
+
+    const monthScheds = schedules.filter(
+      (s) => s.date && s.date.startsWith(monthIsoPrefix)
+    );
+    const monthTaskCount = tasks.filter(
+      (t) => t.due_date && t.due_date.startsWith(monthIsoPrefix)
+    ).length;
+
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const dayNum = i + 1;
+      const dStr = String(dayNum).padStart(2, '0');
+      const iso = `${monthIsoPrefix}-${dStr}`;
+      const hasSched = schedules.some((s) => s.date === iso);
+      const hasTask = tasks.some((t) => t.due_date === iso);
+      const isToday = iso === todayIso;
+      return {
+        dayNum,
+        iso,
+        hasSched,
+        hasTask,
+        isToday,
+      };
+    });
+
+    return {
+      monthIndex: m,
+      monthName: MONTH_NAMES_ID[m],
+      startOffset,
+      days,
+      schedCount: monthScheds.length,
+      taskCount: monthTaskCount,
+    };
+  });
+
+  const handleJumpToMonth = (monthIndex) => {
+    const next = new Date(anchorDate);
+    next.setMonth(monthIndex);
+    setAnchorDate(next);
+    setViewMode('month');
+  };
+
   const renderScheduleCard = (item) => {
     const accent = SCHEDULE_ACCENT_STYLES[item.color] || SCHEDULE_ACCENT_STYLES.sand;
     const statusMeta = STATUS_BADGE[item.status] || STATUS_BADGE.scheduled;
@@ -557,7 +631,9 @@ export default function ScheduleBoard({
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <span className="px-2 font-mono text-xs font-semibold">
-            {viewMode === 'month'
+            {viewMode === 'year'
+              ? `Tahun ${currentYear}`
+              : viewMode === 'month'
               ? monthTitle
               : viewMode === 'today'
               ? selectedDayIso
@@ -589,6 +665,7 @@ export default function ScheduleBoard({
               { id: 'today', label: 'Harian' },
               { id: 'week', label: 'Mingguan' },
               { id: 'month', label: 'Bulanan' },
+              { id: 'year', label: 'Tahunan' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -862,6 +939,191 @@ export default function ScheduleBoard({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* MODE TAHUNAN */}
+      {viewMode === 'year' && (
+        <div className="space-y-4">
+          {/* Banner Ringkasan Tahunan */}
+          <div className="flex flex-col gap-3 rounded-3xl border border-[#E6E0D4] bg-white p-5 sm:flex-row sm:items-center sm:justify-between dark:border-[#242B3D] dark:bg-[#161B26]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]">
+                <CalendarRange className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#141518] dark:text-[#F1F5F9]">
+                  Kalender Tahunan {currentYear}
+                </h2>
+                <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                  Klik tanggal untuk menambah agenda, atau klik nama bulan untuk membuka tampilan bulanan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-1.5 text-center dark:border-[#262E42] dark:bg-[#10141E]">
+                <span className="block font-mono text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
+                  {yearSchedules.length}
+                </span>
+                <span className="text-[10px] text-[#71717A] dark:text-[#9DA7BD]">
+                  Agenda Tahun Ini
+                </span>
+              </div>
+              <div className="rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-1.5 text-center dark:border-[#262E42] dark:bg-[#10141E]">
+                <span className="block font-mono text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
+                  {yearTasks.length}
+                </span>
+                <span className="text-[10px] text-[#71717A] dark:text-[#9DA7BD]">
+                  Deadline Tugas
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Legenda Indikator */}
+          <div className="flex flex-wrap items-center justify-end gap-4 px-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#141518] dark:bg-[#93C5FD]" />
+              <span>Hari Ini</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#5E8BE6]" />
+              <span>Ada Agenda</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#F43F5E]" />
+              <span>Ada Deadline Tugas</span>
+            </div>
+          </div>
+
+          {/* Grid 12 Bulan */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {yearMonthData.map((m) => (
+              <div
+                key={m.monthIndex}
+                className="flex flex-col justify-between rounded-2xl border border-[#E6E0D4] bg-white p-3.5 transition-all hover:border-[#141518]/30 hover:shadow-xs dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#60A5FA]/40"
+              >
+                <div>
+                  {/* Header Bulan */}
+                  <div className="flex items-center justify-between border-b border-[#EFECE4] pb-2 dark:border-[#242B3D]">
+                    <button
+                      type="button"
+                      onClick={() => handleJumpToMonth(m.monthIndex)}
+                      className="group flex items-center gap-1 text-left font-bold text-xs text-[#141518] hover:text-[#5E8BE6] dark:text-[#F1F5F9] dark:hover:text-[#93C5FD]"
+                      title={`Buka tampilan bulan ${m.monthName}`}
+                    >
+                      <span>{m.monthName}</span>
+                      <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                    {m.schedCount > 0 && (
+                      <span className="rounded-full bg-[#EBF3FE] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]">
+                        {m.schedCount} agenda
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Header Singkatan Hari */}
+                  <div className="mt-2 grid grid-cols-7 gap-1 text-center font-mono text-[9px] font-bold text-[#71717A] dark:text-[#6B768F]">
+                    {['S', 'S', 'R', 'K', 'J', 'S', 'M'].map((d, idx) => (
+                      <div key={idx}>{d}</div>
+                    ))}
+                  </div>
+
+                  {/* Grid Hari dalam Bulan */}
+                  <div className="mt-1 grid grid-cols-7 gap-1 text-center font-mono text-[11px]">
+                    {/* Padding awal offset */}
+                    {Array.from({ length: m.startOffset }).map((_, idx) => (
+                      <div key={`offset-${idx}`} className="h-6 w-full" />
+                    ))}
+
+                    {/* Tanggal dalam Bulan */}
+                    {m.days.map((day) => (
+                      <button
+                        key={day.iso}
+                        type="button"
+                        onClick={() => handleOpenCreate(day.iso)}
+                        title={`${day.dayNum} ${m.monthName} ${currentYear}${
+                          day.hasSched ? ' (Ada agenda)' : ''
+                        }${day.hasTask ? ' (Ada tenggat tugas)' : ''}`}
+                        className={`relative flex h-6 w-full flex-col items-center justify-center rounded-lg transition-colors ${
+                          day.isToday
+                            ? 'bg-[#141518] font-bold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
+                            : 'text-[#141518] hover:bg-[#FAF7F0] dark:text-[#E2E7F2] dark:hover:bg-[#1B2233]'
+                        }`}
+                      >
+                        <span className="leading-none">{day.dayNum}</span>
+                        {/* Indikator Titik */}
+                        <div className="absolute -bottom-0.5 flex gap-0.5">
+                          {day.hasSched && (
+                            <span
+                              className={`h-1 w-1 rounded-full ${
+                                day.isToday ? 'bg-white dark:bg-[#0F131D]' : 'bg-[#5E8BE6]'
+                              }`}
+                            />
+                          )}
+                          {day.hasTask && (
+                            <span
+                              className={`h-1 w-1 rounded-full ${
+                                day.isToday ? 'bg-white dark:bg-[#0F131D]' : 'bg-[#F43F5E]'
+                              }`}
+                            />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-[#EFECE4] pt-2 text-right dark:border-[#242B3D]">
+                  <button
+                    type="button"
+                    onClick={() => handleJumpToMonth(m.monthIndex)}
+                    className="text-[10px] font-semibold text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white"
+                  >
+                    Buka Bulan Ini &rarr;
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Panel Daftar Agenda Tahun Ini */}
+          <div className="rounded-3xl border border-[#E6E0D4] bg-white p-5 dark:border-[#242B3D] dark:bg-[#161B26]">
+            <div className="flex items-center justify-between border-b border-[#EFECE4] pb-3.5 dark:border-[#242B3D]">
+              <div>
+                <h3 className="text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
+                  Daftar Agenda Tahun {currentYear}
+                </h3>
+                <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                  Semua agenda kegiatan terjadwal di tahun {currentYear}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleOpenCreate(`${currentYear}-01-01`)}
+                className="inline-flex items-center gap-1 rounded-full bg-[#141518] px-3 py-1.5 text-xs font-semibold text-white dark:bg-[#93C5FD] dark:text-[#0F131D]"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Agenda</span>
+              </button>
+            </div>
+
+            {yearSchedules.length > 0 ? (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {yearSchedules.map((item) => renderScheduleCard(item))}
+              </div>
+            ) : (
+              <div className="py-10 text-center">
+                <p className="text-xs font-semibold text-[#141518] dark:text-[#F1F5F9]">
+                  Belum ada agenda di tahun {currentYear}
+                </p>
+                <p className="mt-1 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                  Klik tanggal pada kalender di atas atau tombol Tambah Agenda untuk mulai menjadwalkan kegiatan.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
