@@ -1120,78 +1120,235 @@ export default function ScheduleBoard({
               </div>
             </div>
 
-            {/* Bagian 1: Daftar Tugas Bulan Ini */}
+            {/* Bagian 1: 3 Card Status Nyamping (To-Do, Sedang Dikerjakan, Selesai) */}
             <div className="mt-5 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[#71717A] dark:text-[#9DA7BD]">
-                  Daftar Tugas Bulan {activeRecap.monthName} ({activeRecap.totalTasks})
+                  Rincian Status Tugas Bulan {activeRecap.monthName} ({activeRecap.totalTasks})
                 </h4>
               </div>
 
-              {activeRecap.tasks.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                  {activeRecap.tasks.map((task) => {
-                    const statusMeta = STATUS_META[task.status] || STATUS_META.todo;
-                    const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
-                    const subStats = task.subtask_stats || { total: 0, completed: 0 };
+              {/* 3 Kolom Card Nyamping */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                {/* 1. Kolom To-Do */}
+                <div className="flex flex-col rounded-2xl border border-[#E6E0D4] bg-[#FAF7F0] p-4 dark:border-[#242B3D] dark:bg-[#11151E]">
+                  <div className="flex items-center justify-between border-b border-[#E6E0D4] pb-3 dark:border-[#242B3D]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#71717A] dark:bg-[#9DA7BD]" />
+                      <span className="text-xs font-bold text-[#141518] dark:text-[#F1F5F9]">
+                        To-Do (Menunggu)
+                      </span>
+                    </div>
+                    <span className="rounded-full border border-[#E6E0D4] bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-[#52525B] dark:border-[#242B3D] dark:bg-[#161B26] dark:text-[#CBD5E1]">
+                      {activeRecap.tasks.filter((t) => t.status === 'todo').length}
+                    </span>
+                  </div>
 
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          if (onEditTask) onEditTask(task);
-                        }}
-                        className="group flex cursor-pointer flex-col justify-between rounded-xl border border-[#EFECE4] bg-[#FAF7F0] p-3.5 transition-colors hover:border-[#141518]/30 hover:bg-white dark:border-[#232A3C] dark:bg-[#10141E] dark:hover:border-[#394563] dark:hover:bg-[#161B26]"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusMeta.badgeClass}`}
+                  <div className="mt-3 flex-1 space-y-2.5">
+                    {activeRecap.tasks.filter((t) => t.status === 'todo').length > 0 ? (
+                      activeRecap.tasks
+                        .filter((t) => t.status === 'todo')
+                        .map((task) => {
+                          const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+                          const subStats = task.subtask_stats || { total: 0, completed: 0 };
+                          return (
+                            <div
+                              key={task.id}
+                              onClick={() => {
+                                if (onEditTask) onEditTask(task);
+                              }}
+                              className="group cursor-pointer rounded-xl border border-[#E6E0D4] bg-white p-3.5 transition-all hover:border-[#141518]/40 hover:shadow-xs dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#394563]"
                             >
-                              {statusMeta.label}
-                            </span>
-                            <span
-                              className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityMeta.badgeClass}`}
-                            >
-                              {priorityMeta.label}
-                            </span>
-                          </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="rounded-md bg-[#FAF7F0] border border-[#E6E0D4] px-2 py-0.5 text-[10px] font-medium text-[#52525B] dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#CBD5E1]">
+                                  {task.category || 'Umum'}
+                                </span>
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityMeta.badgeClass}`}
+                                >
+                                  {priorityMeta.label}
+                                </span>
+                              </div>
 
-                          <p className="mt-2 text-xs font-bold text-[#141518] group-hover:underline dark:text-[#F1F5F9]">
-                            {task.title}
-                          </p>
+                              <p className="mt-2 text-xs font-bold text-[#141518] group-hover:underline dark:text-[#F1F5F9]">
+                                {task.title}
+                              </p>
 
-                          {task.description && (
-                            <p className="mt-1 line-clamp-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
-                              {task.description}
-                            </p>
-                          )}
-                        </div>
+                              {task.description && (
+                                <p className="mt-1 line-clamp-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                                  {task.description}
+                                </p>
+                              )}
 
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#EFECE4] pt-2 text-[11px] text-[#71717A] dark:border-[#242B3D] dark:text-[#9DA7BD]">
-                          <span className="rounded-md bg-white px-2 py-0.5 font-medium text-[#52525B] dark:border dark:border-[#273045] dark:bg-[#1A202E] dark:text-[#CBD5E1]">
-                            {task.category || 'Umum'}
-                          </span>
-                          {task.due_date && (
-                            <span className="font-mono text-[10px]">
-                              Tenggat: {task.due_date}
-                            </span>
-                          )}
-                          {subStats.total > 0 && (
-                            <span className="font-mono text-[10px]">
-                              {subStats.completed}/{subStats.total} sub-tugas
-                            </span>
-                          )}
-                        </div>
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-1.5 border-t border-[#EFECE4] pt-2 text-[10px] text-[#71717A] dark:border-[#242B3D] dark:text-[#9DA7BD]">
+                                {task.due_date ? (
+                                  <span className="font-mono">Tenggat: {task.due_date}</span>
+                                ) : (
+                                  <span>Tanpa tenggat</span>
+                                )}
+                                {subStats.total > 0 && (
+                                  <span className="font-mono">
+                                    {subStats.completed}/{subStats.total} sub-tugas
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                    ) : (
+                      <div className="py-8 text-center text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                        Tidak ada tugas To-Do di bulan ini.
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-[#E6E0D4] p-6 text-center text-xs text-[#71717A] dark:border-[#262E42] dark:text-[#9DA7BD]">
-                  Belum ada tugas dengan tenggat atau dibuat pada bulan {activeRecap.monthName} {currentYear}.
+
+                {/* 2. Kolom Sedang Dikerjakan */}
+                <div className="flex flex-col rounded-2xl border border-[#F3C5DF] bg-[#FCE5F1]/30 p-4 dark:border-[#2A3B61] dark:bg-[#182136]/50">
+                  <div className="flex items-center justify-between border-b border-[#F3C5DF] pb-3 dark:border-[#2A3B61]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#D473A7] dark:bg-[#93C5FD]" />
+                      <span className="text-xs font-bold text-[#141518] dark:text-[#F1F5F9]">
+                        Sedang Dikerjakan
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-[#FCE5F1] px-2 py-0.5 font-mono text-[11px] font-bold text-[#702459] dark:bg-[#1E2E4A] dark:text-[#93C5FD]">
+                      {activeRecap.tasks.filter((t) => t.status === 'in_progress').length}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex-1 space-y-2.5">
+                    {activeRecap.tasks.filter((t) => t.status === 'in_progress').length > 0 ? (
+                      activeRecap.tasks
+                        .filter((t) => t.status === 'in_progress')
+                        .map((task) => {
+                          const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+                          const subStats = task.subtask_stats || { total: 0, completed: 0 };
+                          return (
+                            <div
+                              key={task.id}
+                              onClick={() => {
+                                if (onEditTask) onEditTask(task);
+                              }}
+                              className="group cursor-pointer rounded-xl border border-[#E6E0D4] bg-white p-3.5 transition-all hover:border-[#141518]/40 hover:shadow-xs dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#394563]"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="rounded-md bg-[#FAF7F0] border border-[#E6E0D4] px-2 py-0.5 text-[10px] font-medium text-[#52525B] dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#CBD5E1]">
+                                  {task.category || 'Umum'}
+                                </span>
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityMeta.badgeClass}`}
+                                >
+                                  {priorityMeta.label}
+                                </span>
+                              </div>
+
+                              <p className="mt-2 text-xs font-bold text-[#141518] group-hover:underline dark:text-[#F1F5F9]">
+                                {task.title}
+                              </p>
+
+                              {task.description && (
+                                <p className="mt-1 line-clamp-2 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                                  {task.description}
+                                </p>
+                              )}
+
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-1.5 border-t border-[#EFECE4] pt-2 text-[10px] text-[#71717A] dark:border-[#242B3D] dark:text-[#9DA7BD]">
+                                {task.due_date ? (
+                                  <span className="font-mono">Tenggat: {task.due_date}</span>
+                                ) : (
+                                  <span>Tanpa tenggat</span>
+                                )}
+                                {subStats.total > 0 && (
+                                  <span className="font-mono">
+                                    {subStats.completed}/{subStats.total} sub-tugas
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                    ) : (
+                      <div className="py-8 text-center text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                        Tidak ada tugas yang sedang berjalan.
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {/* 3. Kolom Selesai */}
+                <div className="flex flex-col rounded-2xl border border-[#BCE2AA] bg-[#DCF3D1]/30 p-4 dark:border-[#224234] dark:bg-[#14251D]/50">
+                  <div className="flex items-center justify-between border-b border-[#BCE2AA] pb-3 dark:border-[#224234]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#4F9E65] dark:bg-[#86EFAC]" />
+                      <span className="text-xs font-bold text-[#141518] dark:text-[#F1F5F9]">
+                        Selesai
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-[#DCF3D1] px-2 py-0.5 font-mono text-[11px] font-bold text-[#1F5428] dark:bg-[#152920] dark:text-[#86EFAC]">
+                      {activeRecap.tasks.filter((t) => t.status === 'completed').length}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex-1 space-y-2.5">
+                    {activeRecap.tasks.filter((t) => t.status === 'completed').length > 0 ? (
+                      activeRecap.tasks
+                        .filter((t) => t.status === 'completed')
+                        .map((task) => {
+                          const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+                          const subStats = task.subtask_stats || { total: 0, completed: 0 };
+                          return (
+                            <div
+                              key={task.id}
+                              onClick={() => {
+                                if (onEditTask) onEditTask(task);
+                              }}
+                              className="group cursor-pointer rounded-xl border border-[#E6E0D4] bg-white p-3.5 opacity-80 transition-all hover:border-[#141518]/40 hover:opacity-100 hover:shadow-xs dark:border-[#242B3D] dark:bg-[#161B26] dark:hover:border-[#394563]"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="rounded-md bg-[#FAF7F0] border border-[#E6E0D4] px-2 py-0.5 text-[10px] font-medium text-[#52525B] dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#CBD5E1]">
+                                  {task.category || 'Umum'}
+                                </span>
+                                <span
+                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityMeta.badgeClass}`}
+                                >
+                                  {priorityMeta.label}
+                                </span>
+                              </div>
+
+                              <p className="mt-2 text-xs font-bold text-[#71717A] line-through group-hover:underline dark:text-[#9DA7BD]">
+                                {task.title}
+                              </p>
+
+                              {task.description && (
+                                <p className="mt-1 line-clamp-2 text-[11px] text-[#A1A1AA] dark:text-[#6B768F]">
+                                  {task.description}
+                                </p>
+                              )}
+
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-1.5 border-t border-[#EFECE4] pt-2 text-[10px] text-[#71717A] dark:border-[#242B3D] dark:text-[#9DA7BD]">
+                                {task.due_date ? (
+                                  <span className="font-mono">Tenggat: {task.due_date}</span>
+                                ) : (
+                                  <span>Tanpa tenggat</span>
+                                )}
+                                {subStats.total > 0 && (
+                                  <span className="font-mono">
+                                    {subStats.completed}/{subStats.total} sub-tugas
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                    ) : (
+                      <div className="py-8 text-center text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                        Belum ada tugas selesai di bulan ini.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Bagian 2: Agenda Jadwal Bulan Ini */}
