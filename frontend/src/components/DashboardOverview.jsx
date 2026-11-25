@@ -78,7 +78,6 @@ export default function DashboardOverview({
       id: 'total',
       label: 'Total Tugas',
       value: stats?.total ?? 0,
-      hint: `${stats?.todo ?? 0} menunggu dikerjakan`,
       icon: Layers,
       cardClass:
         'bg-[#F2EFE6] border-[#E4DEC9] dark:bg-[#181E2B] dark:border-[#2A3347]',
@@ -334,11 +333,10 @@ export default function DashboardOverview({
                               {task.category}
                             </span>
                             <span
-                              className={`font-mono ${
-                                deadline.isOverdue
-                                  ? 'font-semibold text-rose-600 dark:text-rose-400'
-                                  : 'text-[#71717A] dark:text-[#9DA7BD]'
-                              }`}
+                              className={`font-mono ${deadline.isOverdue
+                                ? 'font-semibold text-rose-600 dark:text-rose-400'
+                                : 'text-[#71717A] dark:text-[#9DA7BD]'
+                                }`}
                             >
                               {deadline.text}
                             </span>
@@ -470,11 +468,10 @@ export default function DashboardOverview({
                             </span>
                             {task.due_date && (
                               <span
-                                className={`font-mono ${
-                                  deadline.isOverdue
-                                    ? 'font-semibold text-rose-600 dark:text-rose-400'
-                                    : 'text-[#71717A] dark:text-[#9DA7BD]'
-                                }`}
+                                className={`font-mono ${deadline.isOverdue
+                                  ? 'font-semibold text-rose-600 dark:text-rose-400'
+                                  : 'text-[#71717A] dark:text-[#9DA7BD]'
+                                  }`}
                               >
                                 {deadline.text}
                               </span>
