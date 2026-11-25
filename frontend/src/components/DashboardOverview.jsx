@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
   Printer,
   RefreshCw,
   StickyNote,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/useContexts';
 import {
@@ -127,6 +128,59 @@ export default function DashboardOverview({
 
   const completionRate = stats?.completion_rate ?? 0;
 
+  /* ── Statistik Kurva: hitung data 7 hari terakhir ── */
+  const chartData = useMemo(() => {
+    const days = 7;
+    const labels = [];
+    const todoLine = [];
+    const progressLine = [];
+    const doneLine = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0, 10);
+      const dayName = d.toLocaleDateString('id-ID', { weekday: 'short' });
+      labels.push(dayName);
+
+      // Hitung tugas yang dibuat pada / sebelum hari itu DAN belum selesai pada hari itu
+      let todo = 0;
+      let prog = 0;
+      let done = 0;
+      tasks.forEach((t) => {
+        const created = t.created_at?.slice(0, 10);
+        if (!created || created > iso) return;        // belum dibuat
+        // Gunakan updated_at untuk estimasi kapan status berubah
+        const updated = t.updated_at?.slice(0, 10) ?? created;
+
+        if (t.status === 'completed' && updated <= iso) done++;
+        else if (t.status === 'in_progress' && (updated <= iso || created <= iso)) prog++;
+        else if (created <= iso) todo++;
+      });
+      todoLine.push(todo);
+      progressLine.push(prog);
+      doneLine.push(done);
+    }
+
+    // Cari max untuk skala Y
+    const allVals = [...todoLine, ...progressLine, ...doneLine];
+    const maxVal = Math.max(...allVals, 1);
+
+    return { labels, todoLine, progressLine, doneLine, maxVal };
+  }, [tasks, now]);
+
+  /* ── Helper SVG: ubah array angka → polyline points ── */
+  const toPoints = (data, maxVal, width, height, padX, padY) => {
+    const stepX = (width - padX * 2) / Math.max(data.length - 1, 1);
+    return data
+      .map((v, i) => {
+        const x = padX + i * stepX;
+        const y = padY + (height - padY * 2) * (1 - v / maxVal);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Editorial */}
@@ -226,6 +280,158 @@ export default function DashboardOverview({
             </div>
           );
         })}
+      </div>
+
+      {/* ═══ Kurva Statistik Tugas (SVG Line Chart) ═══ */}
+      <div className="rounded-2xl border border-[#E6E0D4] bg-white p-5 dark:border-[#242B3D] dark:bg-[#161B26]">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EDE9FE] text-[#624CE0] dark:bg-[#1E1B4B] dark:text-[#A78BFA]">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
+                Statistik Tugas — 7 Hari Terakhir
+              </h2>
+              <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                Tren jumlah tugas per status harian
+              </p>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-3 text-[11px] font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-5 rounded-full bg-[#F59E0B]" />
+              <span className="text-[#52525B] dark:text-[#CBD5E1]">To-Do</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-5 rounded-full bg-[#EC4899]" />
+              <span className="text-[#52525B] dark:text-[#CBD5E1]">Dikerjakan</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-5 rounded-full bg-[#22C55E]" />
+              <span className="text-[#52525B] dark:text-[#CBD5E1]">Selesai</span>
+            </span>
+          </div>
+        </div>
+
+        {/* SVG Chart */}
+        <div className="mt-4 overflow-hidden rounded-xl border border-[#EFECE4] bg-[#FDFCF9] dark:border-[#232A3C] dark:bg-[#10141E]">
+          <svg
+            viewBox="0 0 560 220"
+            className="h-auto w-full"
+            preserveAspectRatio="xMidYMid meet"
+            aria-label="Grafik statistik tugas 7 hari terakhir"
+          >
+            {/* Grid garis horizontal */}
+            {[0, 0.25, 0.5, 0.75, 1].map((frac) => {
+              const y = 30 + (160 * (1 - frac));
+              const label = Math.round(chartData.maxVal * frac);
+              return (
+                <g key={frac}>
+                  <line
+                    x1="50" y1={y} x2="530" y2={y}
+                    className="stroke-[#E6E0D4] dark:stroke-[#242B3D]"
+                    strokeWidth="0.7"
+                    strokeDasharray={frac === 0 ? '' : '4,3'}
+                  />
+                  <text
+                    x="42" y={y + 4}
+                    textAnchor="end"
+                    className="fill-[#A1A1AA] dark:fill-[#52525B] font-mono"
+                    style={{ fontSize: '10px' }}
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Label hari di sumbu X */}
+            {chartData.labels.map((label, i) => {
+              const stepX = (560 - 50 * 2) / Math.max(chartData.labels.length - 1, 1);
+              const x = 50 + i * stepX;
+              return (
+                <text
+                  key={i}
+                  x={x} y={210}
+                  textAnchor="middle"
+                  className="fill-[#71717A] dark:fill-[#9DA7BD] font-mono"
+                  style={{ fontSize: '10px' }}
+                >
+                  {label}
+                </text>
+              );
+            })}
+
+            {/* Area fill + lines */}
+            {/* To-Do (amber) */}
+            <polyline
+              points={toPoints(chartData.todoLine, chartData.maxVal, 560, 220, 50, 30)}
+              fill="none"
+              className="stroke-[#F59E0B]"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Sedang Dikerjakan (pink) */}
+            <polyline
+              points={toPoints(chartData.progressLine, chartData.maxVal, 560, 220, 50, 30)}
+              fill="none"
+              className="stroke-[#EC4899]"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Selesai (green) */}
+            <polyline
+              points={toPoints(chartData.doneLine, chartData.maxVal, 560, 220, 50, 30)}
+              fill="none"
+              className="stroke-[#22C55E]"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {/* Dots pada setiap data point */}
+            {[
+              { data: chartData.todoLine, color: '#F59E0B' },
+              { data: chartData.progressLine, color: '#EC4899' },
+              { data: chartData.doneLine, color: '#22C55E' },
+            ].map(({ data, color }) => {
+              const stepX = (560 - 50 * 2) / Math.max(data.length - 1, 1);
+              return data.map((v, i) => {
+                const cx = 50 + i * stepX;
+                const cy = 30 + (160) * (1 - v / chartData.maxVal);
+                return (
+                  <g key={`${color}-${i}`}>
+                    <circle cx={cx} cy={cy} r="5" fill={color} opacity="0.15" />
+                    <circle cx={cx} cy={cy} r="3" fill={color} />
+                    {/* Tooltip value */}
+                    <title>{`${chartData.labels[i]}: ${v}`}</title>
+                  </g>
+                );
+              });
+            })}
+          </svg>
+        </div>
+
+        {/* Ringkasan angka cepat di bawah chart */}
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-[#FFFBEB] p-2.5 dark:bg-[#1C1507]">
+            <p className="font-mono text-lg font-bold text-[#B45309] dark:text-[#FCD34D]">{stats?.todo ?? 0}</p>
+            <p className="text-[10px] font-medium text-[#92400E] dark:text-[#D97706]">To-Do</p>
+          </div>
+          <div className="rounded-xl bg-[#FDF2F8] p-2.5 dark:bg-[#1C0B16]">
+            <p className="font-mono text-lg font-bold text-[#BE185D] dark:text-[#F472B6]">{stats?.in_progress ?? 0}</p>
+            <p className="text-[10px] font-medium text-[#9D174D] dark:text-[#EC4899]">Dikerjakan</p>
+          </div>
+          <div className="rounded-xl bg-[#F0FDF4] p-2.5 dark:bg-[#071A0E]">
+            <p className="font-mono text-lg font-bold text-[#15803D] dark:text-[#86EFAC]">{stats?.completed ?? 0}</p>
+            <p className="text-[10px] font-medium text-[#166534] dark:text-[#22C55E]">Selesai</p>
+          </div>
+        </div>
       </div>
 
       {/* Kartu Progres Penyelesaian Real-Time */}
