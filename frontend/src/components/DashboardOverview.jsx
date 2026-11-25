@@ -8,6 +8,7 @@ import {
   Clock,
   Image as ImageIcon,
   Layers,
+  ListTodo,
   Pin,
   Plus,
   Printer,
@@ -56,6 +57,11 @@ export default function DashboardOverview({
     })
     .slice(0, 5);
 
+  // Daftar tugas berstatus To-Do (menunggu dikerjakan)
+  const todoTasks = tasks
+    .filter((task) => task.status === 'todo')
+    .slice(0, 5);
+
   // Jadwal hari ini atau terdekat dari tabel schedules
   const todaySchedules = schedules
     .filter((item) => item.date >= todayStr && item.status !== 'done')
@@ -69,6 +75,7 @@ export default function DashboardOverview({
 
   const metrics = [
     {
+      id: 'total',
       label: 'Total Tugas',
       value: stats?.total ?? 0,
       hint: `${stats?.todo ?? 0} menunggu dikerjakan`,
@@ -78,6 +85,17 @@ export default function DashboardOverview({
       iconBg: 'bg-white text-[#141518] dark:bg-[#242C40] dark:text-[#E2E8F0]',
     },
     {
+      id: 'todo',
+      label: 'Tugas To-Do',
+      value: stats?.todo ?? tasks.filter((t) => t.status === 'todo').length,
+      hint: `${stats?.todo ?? 0} siap dikerjakan`,
+      icon: ListTodo,
+      cardClass:
+        'bg-[#EBF3FE] border-[#CDE0FD] dark:bg-[#132238] dark:border-[#1E375C]',
+      iconBg: 'bg-white/90 text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]',
+    },
+    {
+      id: 'in_progress',
       label: 'Sedang Dikerjakan',
       value: stats?.in_progress ?? 0,
       hint: 'Aktif dalam progres',
@@ -87,6 +105,7 @@ export default function DashboardOverview({
       iconBg: 'bg-white/90 text-[#84205B] dark:bg-[#223254] dark:text-[#93C5FD]',
     },
     {
+      id: 'completed',
       label: 'Selesai',
       value: stats?.completed ?? 0,
       hint: `${stats?.completion_rate ?? 0}% terselesaikan`,
@@ -96,6 +115,7 @@ export default function DashboardOverview({
       iconBg: 'bg-white/90 text-[#1F5428] dark:bg-[#1C382B] dark:text-[#86EFAC]',
     },
     {
+      id: 'overdue',
       label: 'Terlambat (Overdue)',
       value: stats?.overdue ?? 0,
       hint: stats?.overdue > 0 ? 'Perlu perhatian segera' : 'Jadwal tetap aman',
@@ -179,8 +199,8 @@ export default function DashboardOverview({
         </div>
       </div>
 
-      {/* 4 Kartu Metrik Pastel Rounded-2xl */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Kartu Metrik Pastel Rounded-2xl */}
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-5">
         {metrics.map((card) => {
           const Icon = card.icon;
           return (
@@ -361,6 +381,133 @@ export default function DashboardOverview({
                     Isi Contoh Tugas & Catatan UKK
                   </button>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Card To-Do (Daftar Tugas Siap Dikerjakan) */}
+          <div className="rounded-2xl border border-[#E6E0D4] bg-white p-5 dark:border-[#242B3D] dark:bg-[#161B26]">
+            <div className="flex items-center justify-between border-b border-[#EFECE4] pb-3.5 dark:border-[#242B3D]">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#EBF3FE] text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]">
+                  <ListTodo className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-[#141518] dark:text-[#F1F5F9]">
+                    Daftar Tugas To-Do
+                  </h2>
+                  <p className="text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                    {todoTasks.length} tugas menunggu untuk dikerjakan
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onOpenCreate}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#E6E0D4] bg-[#FAF7F0] px-2.5 py-1 text-xs font-semibold text-[#141518] transition-colors hover:bg-[#EFECE4] dark:border-[#262E42] dark:bg-[#10141E] dark:text-[#E2E7F2] dark:hover:bg-[#1F2636]"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Tambah</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('all')}
+                  className="inline-flex items-center gap-1 rounded-full border border-[#E6E0D4] bg-[#FAF7F0] px-2.5 py-1 text-xs font-semibold text-[#141518] transition-colors hover:bg-[#EFECE4] dark:border-[#262E42] dark:bg-[#10141E] dark:text-[#E2E7F2] dark:hover:bg-[#1F2636]"
+                >
+                  <span>Lihat Semua</span>
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+
+            {todoTasks.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {todoTasks.map((task) => {
+                  const deadline = formatRelativeDeadline(task.due_date, task.status);
+                  const priorityMeta = PRIORITY_META[task.priority] || PRIORITY_META.medium;
+                  const subStats = task.subtask_stats || { total: 0, completed: 0 };
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-[#EFECE4] bg-[#FAF7F0] p-3.5 transition-colors hover:border-[#CFC8B8] dark:border-[#232A3C] dark:bg-[#10141E] dark:hover:border-[#394563]"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <button
+                          type="button"
+                          onClick={() => onToggleComplete(task)}
+                          className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[#C7BFA9] bg-white text-transparent transition-colors hover:border-[#141518] dark:border-[#3B4661] dark:bg-[#161B26] dark:hover:border-[#93C5FD]"
+                          title="Tandai tugas selesai"
+                          aria-label={`Tandai ${task.title} selesai`}
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {task.is_pinned && (
+                              <Pin className="h-3 w-3 shrink-0 text-[#52525B] dark:text-[#FCD34D]" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onEditTask(task)}
+                              className="truncate text-left text-sm font-semibold text-[#141518] hover:underline dark:text-[#F1F5F9]"
+                            >
+                              {task.title}
+                            </button>
+                          </div>
+
+                          {task.description && (
+                            <p className="mt-0.5 line-clamp-1 text-xs text-[#71717A] dark:text-[#9DA7BD]">
+                              {task.description}
+                            </p>
+                          )}
+
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span className="rounded-full bg-white px-2 py-0.5 font-medium text-[#52525B] dark:border dark:border-[#273045] dark:bg-[#1A202E] dark:text-[#CBD5E1]">
+                              {task.category}
+                            </span>
+                            {task.due_date && (
+                              <span
+                                className={`font-mono ${
+                                  deadline.isOverdue
+                                    ? 'font-semibold text-rose-600 dark:text-rose-400'
+                                    : 'text-[#71717A] dark:text-[#9DA7BD]'
+                                }`}
+                              >
+                                {deadline.text}
+                              </span>
+                            )}
+                            {subStats.total > 0 && (
+                              <span className="font-mono text-[#71717A] dark:text-[#9DA7BD]">
+                                · {subStats.completed}/{subStats.total} sub-tugas
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${priorityMeta.badgeClass}`}
+                      >
+                        {priorityMeta.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-7 text-center">
+                <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#EBF3FE] text-[#1E40AF] dark:bg-[#1D3557] dark:text-[#93C5FD]">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <p className="mt-2 text-xs font-semibold text-[#141518] dark:text-[#F1F5F9]">
+                  Tidak ada tugas yang menunggu di daftar To-Do
+                </p>
+                <p className="mt-0.5 text-[11px] text-[#71717A] dark:text-[#9DA7BD]">
+                  Semua tugas sedang dikerjakan atau sudah terselesaikan.
+                </p>
               </div>
             )}
           </div>
