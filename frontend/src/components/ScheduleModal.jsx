@@ -58,8 +58,13 @@ export default function ScheduleModal({
       setErrorMsg('Judul agenda jadwal minimal terdiri dari 2 karakter.');
       return;
     }
+    const todayDateStr = new Date().toLocaleDateString('en-CA');
     if (!date) {
       setErrorMsg('Tanggal pelaksanaan wajib dipilih.');
+      return;
+    }
+    if (date < todayDateStr) {
+      setErrorMsg('Tanggal pelaksanaan tidak boleh sebelum hari ini.');
       return;
     }
 
@@ -198,7 +203,11 @@ export default function ScheduleModal({
                 <input
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  min={new Date().toLocaleDateString('en-CA')}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
                   className="w-full rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3 py-2 font-mono text-xs text-[#141518] focus:border-[#141518] focus:outline-none dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#F1F5F9] dark:focus:border-[#60A5FA]"
                 />
               </div>

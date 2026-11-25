@@ -29,11 +29,11 @@ class StoreTaskRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'min:2', 'max:200'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'description' => ['required', 'string', 'min:2', 'max:5000'],
             'status' => ['nullable', 'in:todo,in_progress,completed'],
             'priority' => ['nullable', 'in:low,medium,high'],
             'category' => ['nullable', 'string', 'max:80'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:today'],
             'is_pinned' => ['nullable', 'boolean'],
 
             // Validasi Multidimensional Array / Array of Objects untuk Sub-tugas (Checklist)
@@ -54,11 +54,14 @@ class StoreTaskRequest extends FormRequest
             'title.required' => 'Judul tugas wajib diisi.',
             'title.min' => 'Judul tugas minimal terdiri dari 2 karakter.',
             'title.max' => 'Judul tugas maksimal 200 karakter.',
+            'description.required' => 'Deskripsi tugas wajib diisi.',
+            'description.min' => 'Deskripsi tugas minimal terdiri dari 2 karakter.',
             'description.max' => 'Deskripsi tugas maksimal 5000 karakter.',
             'status.in' => 'Status tugas tidak valid (pilih: todo, in_progress, atau completed).',
             'priority.in' => 'Prioritas tugas harus bernilai low, medium, atau high.',
             'category.max' => 'Nama kategori maksimal 80 karakter.',
             'due_date.date' => 'Format tanggal tenggat waktu tidak valid.',
+            'due_date.after_or_equal' => 'Tenggat waktu tidak boleh memilih tanggal sebelum hari ini.',
             'subtasks.array' => 'Format daftar sub-tugas tidak valid.',
             'subtasks.*.title.required_with' => 'Judul setiap item sub-tugas tidak boleh kosong.',
             'subtasks.*.title.max' => 'Judul sub-tugas maksimal 200 karakter.',

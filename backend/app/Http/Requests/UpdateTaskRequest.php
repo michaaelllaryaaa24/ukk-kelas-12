@@ -23,7 +23,7 @@ class UpdateTaskRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'required', 'string', 'min:2', 'max:200'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'description' => ['sometimes', 'required', 'string', 'min:2', 'max:5000'],
             'status' => ['sometimes', 'in:todo,in_progress,completed'],
             'priority' => ['sometimes', 'in:low,medium,high'],
             'category' => ['sometimes', 'string', 'max:80'],
@@ -46,6 +46,8 @@ class UpdateTaskRequest extends FormRequest
             'title.required' => 'Judul tugas tidak boleh kosong.',
             'title.min' => 'Judul tugas minimal terdiri dari 2 karakter.',
             'title.max' => 'Judul tugas maksimal 200 karakter.',
+            'description.required' => 'Deskripsi tugas tidak boleh kosong.',
+            'description.min' => 'Deskripsi tugas minimal terdiri dari 2 karakter.',
             'status.in' => 'Status tugas tidak valid.',
             'priority.in' => 'Prioritas tugas tidak valid.',
             'due_date.date' => 'Format tanggal tenggat waktu tidak valid.',

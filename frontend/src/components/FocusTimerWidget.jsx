@@ -147,9 +147,8 @@ export default function FocusTimerWidget({ tasks = [], compact = false }) {
 
   return (
     <div
-      className={`rounded-2xl border border-[#E6E0D4] bg-white dark:border-[#242B3D] dark:bg-[#161B26] ${
-        compact ? 'p-4' : 'p-5'
-      }`}
+      className={`rounded-2xl border border-[#E6E0D4] bg-white dark:border-[#242B3D] dark:bg-[#161B26] ${compact ? 'p-4' : 'p-5'
+        }`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -165,22 +164,20 @@ export default function FocusTimerWidget({ tasks = [], compact = false }) {
           <button
             type="button"
             onClick={() => switchMode('focus')}
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
-              mode === 'focus'
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${mode === 'focus'
                 ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
                 : 'text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white'
-            }`}
+              }`}
           >
             Fokus
           </button>
           <button
             type="button"
             onClick={() => switchMode('break')}
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
-              mode === 'break'
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${mode === 'break'
                 ? 'bg-[#141518] text-white dark:bg-[#93C5FD] dark:text-[#0F131D]'
                 : 'text-[#71717A] hover:text-[#141518] dark:text-[#9DA7BD] dark:hover:text-white'
-            }`}
+              }`}
           >
             <Coffee className="h-3 w-3" />
             Jeda
@@ -210,11 +207,10 @@ export default function FocusTimerWidget({ tasks = [], compact = false }) {
                 : 'Suara detik nonaktif (klik untuk aktifkan)'
             }
             aria-label="Toggle suara detik timer"
-            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-              tickEnabled && globalSoundOn
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${tickEnabled && globalSoundOn
                 ? 'border-[#E6E0D4] bg-[#FAF7F0] text-[#141518] hover:bg-[#EFECE4] dark:border-[#2C4066] dark:bg-[#1A253B] dark:text-[#93C5FD] dark:hover:bg-[#223254]'
                 : 'border-[#E6E0D4] bg-[#FAF7F0] text-[#71717A] hover:bg-[#EFECE4] dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#6B768F] dark:hover:bg-[#1F2636]'
-            }`}
+              }`}
           >
             {tickEnabled && globalSoundOn ? (
               <Volume2 className="h-3.5 w-3.5" />

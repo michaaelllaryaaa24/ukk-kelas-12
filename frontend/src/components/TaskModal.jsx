@@ -126,8 +126,20 @@ export default function TaskModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const todayDateStr = new Date().toLocaleDateString('en-CA');
+
     if (title.trim().length < 2) {
       setErrorMsg('Judul tugas wajib diisi minimal 2 karakter.');
+      return;
+    }
+
+    if (!description.trim()) {
+      setErrorMsg('Deskripsi tugas wajib diisi.');
+      return;
+    }
+
+    if (dueDate && dueDate < todayDateStr) {
+      setErrorMsg('Tenggat waktu tidak boleh memilih tanggal sebelum hari ini.');
       return;
     }
 
@@ -138,7 +150,7 @@ export default function TaskModal({
     // Mengirim payload terstruktur ke fungsi parent untuk CREATE / UPDATE via taskApi
     onSave({
       title: title.trim(),
-      description: description.trim() || null,
+      description: description.trim(),
       category: finalCategory,
       priority,
       status,
@@ -233,12 +245,16 @@ export default function TaskModal({
             {/* Deskripsi */}
             <div>
               <label className="mb-1.5 block text-xs font-bold text-[#3F3F46] dark:text-[#CBD5E1]">
-                Deskripsi / Catatan
+                Deskripsi / Catatan <span className="text-rose-500">*</span>
               </label>
               <textarea
                 rows={3}
+                required
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (errorMsg) setErrorMsg('');
+                }}
                 placeholder="Jelaskan ruang lingkup, referensi, atau target pencapaian tugas..."
                 className="w-full rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-2.5 text-sm text-[#141518] placeholder-[#A1A1AA] focus:border-[#141518] focus:bg-white focus:outline-none dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#F1F5F9] dark:placeholder-[#6B768F] dark:focus:border-[#60A5FA]"
               />
@@ -290,7 +306,12 @@ export default function TaskModal({
                 <input
                   type="date"
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  min={new Date().toLocaleDateString('en-CA')}
+                  onChange={(e) => {
+                    setDueDate(e.target.value);
+                    if (errorMsg) setErrorMsg('');
+                  }}
+                  min={new Date().toISOString().split('T')[0]}
                   className="w-full rounded-xl border border-[#E6E0D4] bg-[#FAF7F0] px-3.5 py-2 font-mono text-sm text-[#141518] focus:border-[#141518] focus:outline-none dark:border-[#242B3D] dark:bg-[#10141E] dark:text-[#F1F5F9] dark:focus:border-[#60A5FA]"
                 />
               </div>
